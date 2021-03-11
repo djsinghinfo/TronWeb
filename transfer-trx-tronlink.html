@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>TronWeb TRX Transfer using Tron Link</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <meta name="author" content="djsinghinfo">
+
+    <script>
+        window.onload = function() {
+            if (!window.tronWeb) {
+                alert('Please install Tron Link.');
+                return false;
+
+                // const HttpProvider = TronWeb.providers.HttpProvider;
+                // const fullNode = new HttpProvider('https://api.trongrid.io');
+                // const solidityNode = new HttpProvider('https://api.trongrid.io');
+                // const eventServer = 'https://api.trongrid.io/';
+
+                // const tronWeb = new TronWeb(
+                //     fullNode,
+                //     solidityNode,
+                //     eventServer,
+                // );
+
+                // window.tronWeb = tronWeb;
+            }
+        };
+    </script>
+</head>
+
+<body>
+    TRX Address : <span id="connected_address"></span><br>
+    TRX Balance : <span id="connected_address_balance"></span><br>
+    TRX Bandwidth : <span id="connected_address_bw"></span><br>
+    <button onclick="getTronWeb()">Get Connected Address info</button>
+    <script>
+        function getTronWeb() {
+            // console.log(window.tronWeb);
+            // console.log(window.tronWeb.defaultAddress);
+            // if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+            //     document.getElementById('connected_address').innerHTML = window.tronWeb.defaultAddress.base58;
+            // }
+
+            const app_connected = async () => {
+                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+
+                    console.log('-tronWeb', tronWeb);
+
+                    if (tronWeb.fullNode.host == "https://api.trongrid.io" || tronWeb.fullNode.host == "https://api.tronstack.io") {
+                        var c_addr = await tronWeb.defaultAddress.base58;
+                        document.getElementById('connected_address').innerHTML = c_addr;
+
+                        var c_addr_bal = await tronWeb.trx.getBalance(c_addr);
+                        document.getElementById('connected_address_balance').innerHTML = (c_addr_bal / 1000000);
+
+                        var c_addr_bw = await tronWeb.trx.getBandwidth(c_addr);
+                        document.getElementById('connected_address_bw').innerHTML = c_addr_bw;
+                    } else {
+                        alert('Please select TRON Mainnet (TronGrid)');
+                        return false;
+                    }
+                }
+            };
+
+            app_connected();
+        }
+    </script>
+
+    <br>
+    <br>
+
+    <hr>
+
+    <label for="send_value">TRX Amount</label>
+    <input type="number" id="send_value" value="1" placeholder="Send Value">
+    <br>
+    <br>
+
+    <label for="address_to">TRX Address To</label>
+    <input type="text" id="address_to" value="TDQZRpgXD1nggzoAqL7myiBt1KBhMqDwue" placeholder="Address To" style="width:300px;">
+    <br>
+
+    <button onclick="send_trx()" id="btn_send">Send</button>
+
+    <hr>
+
+    <br>
+    TXN :
+    <a id="txn" target="_blank" href=""></a>
+
+    <br> TXN Event :
+    <a id="txn_event" target="_blank" href=""></a>
+
+    <script>
+        function send_trx() {
+
+            var i = 0;
+
+            window.addEventListener('message', function(e) {
+
+                if (e.data.message && e.data.message.action == "tabReply") {
+
+                    console.log(i);
+                    console.log("tabReply event", e.data.message);
+
+                    if (i == 0) {
+                        if (typeof e.data.message.data.data.txID === 'undefined') {} else {
+                            alert(e.data.message.data.data.txID);
+
+                            var txn_link_event = "https://shasta.tronscan.io/#/transaction/" + e.data.message.data.data.txID;
+                            document.getElementById('txn_event').innerHTML = txn_link_event;
+                            document.getElementById('txn_event').href = txn_link_event;
+                        }
+
+                        // decline request by user
+                        if (typeof e.data.message.data.data === 'undefined' || typeof e.data.message.data.data === 'object') {} else {
+                            alert(e.data.message.data.data);
+
+                            i++;
+                        }
+                    }
+                }
+
+            });
+
+            const app = async () => {
+                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+
+                    console.log('tronWeb', tronWeb);
+                    // tronWeb.defaultAddress:
+                    //     base58: "TWu3oVRyJtsjfAVvCUEvbMX7AtLScE9Hfc"
+                    //     hex: "41e5914c5d5a862b57af42f1a2ef8f381ee8048d35"
+                    //     name: "Pixel"
+                    //     type: 0
+
+                    const connected_address = await tronWeb.defaultAddress.base58;
+                    // const address = 'TWu3oVRyJtsjfAVvCUEvbMX7AtLScE9Hfc';
+                    const address = connected_address;
+
+                    // const address_to = 'TDQZRpgXD1nggzoAqL7myiBt1KBhMqDwue';
+                    const address_to = document.getElementById("address_to").value;
+                    console.log('address_to', address_to);
+
+                    var send_value = document.getElementById("send_value").value;
+                    var send_value = send_value * 1000000;
+                    if (send_value <= 0) {
+                        alert(`Please enter valid amount: ${ send_value }`);
+                        return false;
+                    }
+
+                    const connected_address_bal = await tronWeb.trx.getBalance(connected_address);
+                    console.log(`User's balance is: ${ connected_address_bal }`);
+                    if (connected_address_bal <= 0) {
+                        alert(`Low Balance. your balance is: ${ connected_address_bal }`);
+                        return false;
+                    }
+
+                    if (connected_address_bal < send_value) {
+                        alert(`Your Wallet Balance is Low. your balance is: ${ connected_address_bal / 1000000 }`);
+                        return false;
+                    }
+
+                    await tronWeb.trx.getBalance(connected_address).then(result => {
+                        console.log('-getBalance-then', result)
+                    });
+
+                    // const getBandwidth = await tronWeb.trx.getBandwidth(address);
+                    // console.log('getBandwidth', getBandwidth);
+
+                    // // tronWeb.address.toHex("TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL")
+                    // const address_toHex = await tronWeb.address.toHex(address);
+                    // console.log('address_toHex', address_toHex);
+
+                    // // tronWeb.address.fromHex("418840E6C55B9ADA326D211D818C34A994AECED808")
+                    // const address_fromHex = await tronWeb.address.fromHex(address_toHex);
+                    // console.log('address_fromHex', address_fromHex);
+
+                    const isAddress = await tronWeb.isAddress(address_to);
+                    console.log('isAddress', isAddress);
+                    if (isAddress != true) {
+                        alert(`Please enter valid address`);
+                        return false;
+                    }
+
+                    const isConnected = await tronWeb.isConnected();
+                    console.log('isConnected', isConnected);
+
+                    const getAccount = await tronWeb.trx.getAccount(address);
+                    console.log('getAccount', getAccount);
+
+                    // const getContract = await tronWeb.trx.getContract(address);
+                    // console.log('getContract', getContract);
+
+                    // tronWeb.trx.getTokensIssuedByAddress(address).then(result => {
+                    //     console.log('getTokensIssuedByAddress-then', result);
+                    // });
+
+                    // 1000000 as 1 TRX
+                    // var value = 1000000;
+                    var value = send_value;
+
+                    // // tronWeb.trx.sendTransaction("TVDGpn4hCSzJ5nkHPLetk8KQBtwaTppnkr", 1000);
+                    // const sendTransaction = await tronWeb.trx.sendTransaction(address_to, value).then(result => {
+
+                    //     console.log('-sendTransaction-then', result);
+                    //     console.log('json-string', JSON.stringify(result));
+                    //     console.log('-txnid', result.txnid);
+
+                    //     var txn_link = "https://shasta.tronscan.io/#/transaction/" + result.txnid;
+                    //     document.getElementById('txn').innerHTML = txn_link;
+                    //     document.getElementById('txn').href = txn_link;
+                    // });
+                    // console.log('sendTransaction', sendTransaction);
+
+                    const sendTransaction_ = tronWeb.trx.sendTransaction(address_to, value).then(result => {
+                        console.log('sent: ', result);
+                        console.log('sent-txn: ', result.txnid);
+
+                        console.log('json-string', JSON.stringify(result));
+
+                        var txn_link = "https://shasta.tronscan.io/#/transaction/" + result.txnid;
+                        document.getElementById('txn').innerHTML = txn_link;
+                        document.getElementById('txn').href = txn_link;
+
+                        i = 0;
+                    }).catch(err => {
+                        console.error('error: ', err);
+                    });
+                    console.log('-sendTransaction', sendTransaction_);
+
+                } else {
+                    alert('Please connect TronLink.');
+                    return false;
+                }
+            };
+
+            app();
+
+            // var obj = setInterval(async () => {
+            //     if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+            //         clearInterval(obj)
+            //         var tronWeb = window.tronWeb
+
+            //         // var tx = await tronWeb.transactionBuilder.sendTrx(address_toHex, 10, 'TWu3oVRyJtsjfAVvCUEvbMX7AtLScE9Hfc')
+            //         // var signedTx = await tronWeb.trx.sign(tx)
+            //         // var b_roastTx = await tronWeb.trx.sendRawTransaction(signedTx)
+            //         // console.log(b_roastTx)
+            //     }
+            // }, 10);
+        }
+    </script>
+
+    <br>
+    <br>
+
+    <!-- <button onclick="event_trx()">Event</button>
+    <script>
+        function event_trx() {
+
+            window.addEventListener('message', function(e) {
+                if (e.data.message && e.data.message.action == "tabReply") {
+                    console.log("tabReply event", e.data.message)
+                    if (e.data.message.data.data.node.chain == '_') {
+                        console.log("tronLink currently selects the main chain")
+                    } else {
+                        console.log("tronLink currently selects the side chain")
+                    }
+                }
+
+                if (e.data.message && e.data.message.action == "setAccount") {
+                    console.log("setAccount event", e.data.message)
+                    console.log("current address:", e.data.message.data.address)
+
+                }
+                if (e.data.message && e.data.message.action == "setNode") {
+                    console.log("setNode event", e.data.message)
+                    if (e.data.message.data.node.chain == '_') {
+                        console.log("tronLink currently selects the main chain")
+                    } else {
+                        console.log("tronLink currently selects the side chain")
+                    }
+
+                }
+            })
+            var obj = setInterval(async () => {
+                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                    clearInterval(obj)
+                    let tronweb = window.tronWeb
+                    console.log('hello');
+                }
+            }, 10);
+        }
+    </script> -->
+</body>
+
+</html>
